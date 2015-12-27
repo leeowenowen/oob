@@ -1,78 +1,92 @@
 package com.owo.asynctask;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
 
 public class SourcesReducer<Param> {
     public static interface Source<Param> {
         void run(Param param);
-
-        Object getTag();
-
-        Param getParam();
     }
 
-    private Map<Object, Source<Param>> mSources = new HashMap<>();
-    private Callback<Map<Object, Source<Param>>> mCallback;
+    public static interface SourceMatcher<Param> {
+        boolean match(Param param);
+    }
 
-    public SourcesReducer<Param> callback(
-            Callback<Map<Object, Source<Param>>> callback) {
+    private List<SourceImpl> mSources = new ArrayList<>();
+    private Runnable mCallback;
+
+    public SourcesReducer<Param> callback(Runnable callback) {
         mCallback = callback;
         return this;
     }
 
-    private class SourceImple implements Source<Param> {
-        private final Object mTag;
-        private Param mParam;
+    private void ruduce() {
+        for (SourceImpl source : mSources) {
+            if (!source.isMatch()) {
+                return;
+            }
+        }
+        mCallback.run();
+    }
 
-        public SourceImple(Object tag) {
-            mTag = tag;
+    private class SourceImpl implements Source<Param> {
+        private final SourceMatcher<Param> mMatcher;
+        private boolean mIsMatch;
+
+        public boolean isMatch() {
+            return mIsMatch;
+        }
+
+        public SourceImpl(SourceMatcher<Param> matcher) {
+            mMatcher = matcher;
         }
 
         @Override
         public void run(Param param) {
-            mParam = param;
-            mCallback.run(mSources);
-        }
-
-        @Override
-        public Object getTag() {
-            return mTag;
-        }
-
-        @Override
-        public Param getParam() {
-            return mParam;
+            mIsMatch = mMatcher.match(param);
+            ruduce();
         }
     }
 
-    public Source<Param> makeSource(Object tag) {
-        Source<Param> source = new SourceImple(tag);
-        mSources.put(tag, source);
+    public Source<Param> registerSource(SourceMatcher<Param> matcher) {
+        SourceImpl source = new SourceImpl(matcher);
+        mSources.add(source);
         return source;
     }
-    
-//    public class Main {
-//
+
+  //public class Main {
+    //
 //        public static void main(String[] args) {
 //            SourcesReducer<String> reducer = new SourcesReducer<>();
-//            Source<String> s1 = reducer.makeSource("s1");
-//            Source<String> s2 = reducer.makeSource("s2");
-//            Source<String> s3 = reducer.makeSource("s3");
-//            reducer.callback(new Callback<Map<Object, Source<String>>>() {
+//            Source<String> s1 = reducer.registerSource(new SourceMatcher<String>() {
 //                @Override
-//                public void run(Map<Object, Source<String>> t) {
-//                    if ("abc".equals(t.get("s1").getParam())
-//                            && "3f".equals(t.get("s2").getParam())
-//                            && "4c".equals(t.get("s3").getParam())) {
-//                        // condition match
-//                        System.out.println("match");
-//                    }
+//                public boolean match(String param) {
+//                    return "abc".equals(param);
+//                }
+//            });
+//            Source<String> s2 = reducer.registerSource(new SourceMatcher<String>() {
+//                @Override
+//                public boolean match(String param) {
+//                    return param.startsWith("3");
+//                }
+//            });
+//            Source<String> s3 = reducer.registerSource(new SourceMatcher<String>() {
+//                @Override
+//                public boolean match(String param) {
+//                    return param.endsWith("b");
+//                }
+//            });
+    //
+//            reducer.callback(new Runnable() {
+//                @Override
+//                public void run() {
+//                    // condition match
+//                    System.out.println("match");
 //                }
 //            });
 //            s1.run("abc");
-//            s2.run("3f");
-//            s3.run("4c");
+//            s2.run("3f3");
+//            s3.run("4b");
 //        }
-//    }
+    //}
 }
